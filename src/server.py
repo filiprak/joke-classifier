@@ -5,9 +5,7 @@ import pulsar.api as pulsar
 import pulsar.apps.wsgi as wsgi
 from pulsar.apps.wsgi import AccessControl
 
-from classfier_managers.bayes_manager import run_bayes_manager
-from classfier_managers.network_manager import run_network_manager
-from classfier_managers.svm_manager import run_svm_manager
+import classfier_managers.network_manager, classfier_managers.bayes_manager, classfier_managers.svm_manager
 
 app = wsgi.Router('/')
 
@@ -29,23 +27,21 @@ async def spawn_managers(algo='all'):
         network_manager_actor = await pulsar.spawn(name='network_manager_actor', aid='network_manager_actor')
 
 
-@app.router('/start_manager', methods=['get'])
-async def start_manager(request):
-    global arbiter, svm_manager_actor, bayes_manager_actor, network_manager_actor
-
+@app.router('/start_learning', methods=['get'])
+async def start_learning(request):
     query = request.url_data
     if not query['algo'] or query['algo'] not in algorithm_opts:
         return wsgi.WsgiResponse(400, json.dumps({'error': 'unknown algorithm type'}, indent=4))
 
     # run managers
     if query['algo'] in ['svm', 'all']:
-        pulsar.send(svm_manager_actor, 'run', run_svm_manager, args={})
+        await pulsar.send('svm_manager_actor', 'run_svm_learning', {})
     if query['algo'] in ['bayes', 'all']:
-        pulsar.send(bayes_manager_actor, 'run', run_bayes_manager, args={})
+        await pulsar.send('bayes_manager_actor', 'run_bayes_learning', {})
     if query['algo'] in ['network', 'all']:
-        pulsar.send(network_manager_actor, 'run', run_network_manager, args={})
+        await pulsar.send('network_manager_actor', 'run_network_learning', {})
 
-    info = await pulsar.get_actor().send(arbiter, 'info')
+    info = await pulsar.send('arbiter', 'info')
 
     data = {
         'arbiter_info': info,
@@ -54,7 +50,7 @@ async def start_manager(request):
 
 
 @app.router('/get_progress', methods=['get'])
-async def start_manager(request):
+async def get_process(request):
     global arbiter, svm_manager_actor, bayes_manager_actor, network_manager_actor
 
     query = request.url_data
@@ -65,38 +61,32 @@ async def start_manager(request):
 
     # run managers
     if query['algo'] in ['svm', 'all']:
-        progress['svm'] = await pulsar.send(svm_manager_actor, 'get_progress')
+        progress['svm'] = await pulsar.send('svm_manager_actor', 'get_svm_progress')
     if query['algo'] in ['bayes', 'all']:
-        progress['svm'] = await pulsar.send(bayes_manager_actor, 'get_progress')
+        progress['bayes'] = await pulsar.send('bayes_manager_actor', 'get_bayes_progress')
     if query['algo'] in ['network', 'all']:
-        progress['svm'] = await pulsar.send(network_manager_actor, 'get_progress')
+        progress['network'] = await pulsar.send('network_manager_actor', 'get_network_progress')
 
-    data = {
-        'progress': progress,
-    }
+    data = progress
     return wsgi.WsgiResponse(200, json.dumps(data, indent=4))
 
 
-@app.router('/stop_manager', methods=['get'])
-async def stop_manager(request):
-    global arbiter, svm_manager_actor, bayes_manager_actor, network_manager_actor
+@app.router('/stop_learning', methods=['get'])
+async def stop_learning(request):
 
     query = request.url_data
     if not query['algo'] or query['algo'] not in algorithm_opts:
         return wsgi.WsgiResponse(400, json.dumps({'error': 'unknown algorithm type'}, indent=4))
 
     # kill manager actors
-    if svm_manager_actor and query['algo'] in ['svm', 'all']:
-        svm_manager_actor.kill()
-        svm_manager_actor = None
-    if bayes_manager_actor and query['algo'] in ['bayes', 'all']:
-        bayes_manager_actor.kill()
-        bayes_manager_actor = None
-    if network_manager_actor and query['algo'] in ['network', 'all']:
-        network_manager_actor.kill()
-        network_manager_actor = None
+    if query['algo'] in ['svm', 'all']:
+        await pulsar.send('svm_manager_actor', 'kill_svm_instances')
+    if query['algo'] in ['bayes', 'all']:
+        await pulsar.send('bayes_manager_actor', 'kill_bayes_instances')
+    if query['algo'] in ['network', 'all']:
+        await pulsar.send('network_manager_actor', 'kill_network_instances')
 
-    info = await pulsar.get_actor().send(arbiter, 'info')
+    info = await pulsar.send('arbiter', 'info')
     data = {
         'arbiter_info': info,
     }
@@ -119,10 +109,10 @@ def wsgi_setup():
     return wsgi.WsgiHandler(middleware=[app], response_middleware=[AccessControl()])
 
 
-def spawn_manages_wrapper(algo):
+def spawn_managers_wrapper(algo):
     asyncio.ensure_future(spawn_managers(algo))
 
 
 if __name__ == '__main__':
-    asyncio.get_event_loop().call_later(0.1, spawn_manages_wrapper, 'all')
+    asyncio.get_event_loop().call_later(1, spawn_managers_wrapper, 'all')
     wsgi.WSGIServer(callable=wsgi_setup()).start()

@@ -3,7 +3,6 @@ import VueRouter from 'vue-router';
 
 import Dashboard from './components/content/Dashboard'
 import Settings from './components/content/Settings'
-import HelloWorld from './components/HelloWorld'
 
 Vue.use(VueRouter);
 
@@ -20,12 +19,7 @@ let router = new VueRouter({
             name: 'Settings',
             component: Settings,
         },
-        {
-            path: '/helloworld',
-            name: 'HelloWorld',
-            component: HelloWorld,
-        },
-        { path: '*', redirect: '/helloworld' }
+        { path: '*', redirect: '/dashboard' }
     ]
 });
 

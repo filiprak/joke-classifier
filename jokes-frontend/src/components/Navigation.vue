@@ -29,7 +29,6 @@
         data() {
             return {
                 items: [
-                    {title: 'Hello World', icon: 'start', path: 'helloworld'},
                     {title: 'Dashboard', icon: 'dashboard', path: 'dashboard'},
                     {title: 'Settings', icon: 'settings', path: 'settings'},
                 ]
