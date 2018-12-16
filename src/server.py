@@ -3,6 +3,7 @@ import json
 import pulsar.api as pulsar
 
 import pulsar.apps.wsgi as wsgi
+from pulsar.apps.wsgi import AccessControl
 
 from classfier_managers.bayes_manager import run_bayes_manager
 from classfier_managers.network_manager import run_network_manager
@@ -115,7 +116,7 @@ async def stop_manager(request):
 
 # start WSGI server
 def wsgi_setup():
-    return wsgi.WsgiHandler([app])
+    return wsgi.WsgiHandler(middleware=[app], response_middleware=[AccessControl()])
 
 
 def spawn_manages_wrapper(algo):
