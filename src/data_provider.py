@@ -13,7 +13,7 @@ def get_data(source, representation='bag_of_words', stemmer=NoStemmer()):
     with open(source) as s:
         data = json.load(s)
     data = globals()['get_data_as_' + representation](data, stemmer)
-    reset_bag_of_words() #uncomment if using get_data more than once
+    #reset_bag_of_words() #uncomment if using get_data more than once
     return data
 
 
@@ -80,7 +80,15 @@ def iter_word(joke):
 def to_categorical(categories, classes, stemmer):
     out = [0] * (len(classes) + 1)
     out[classes[stemmer.stem(random.choice(categories).lower())]] = 1
-    assert(sum(out) > 0)
+    return out
+
+
+def to_hot_vector(joke, nclasses=None):
+    if nclasses is None:
+        nclasses = to_bag_of_words.index + 1
+    out = [0] * nclasses
+    for word in joke:
+        out[word] = 1
     return out
 
 

@@ -104,6 +104,6 @@ def compute_metrics(model, X, Y):
 
 if __name__ == '__main__':
     X, Y = zip(*data_provider.get_data('../scrapper/out/unijokes.json'))
-    pad_sequences(X)
+    X = [data_provider.to_hot_vector(x) for x in X]
     model = create_model(len(X[0]), len(Y[0]))
     local_train({'X': X, 'Y':Y, 'model':model})
