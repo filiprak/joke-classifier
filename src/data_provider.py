@@ -1,6 +1,7 @@
 import re
 import nltk
 import json
+import random
 
 
 class NoStemmer:
@@ -12,7 +13,7 @@ def get_data(source, representation='bag_of_words', stemmer=NoStemmer()):
     with open(source) as s:
         data = json.load(s)
     data = globals()['get_data_as_' + representation](data, stemmer)
-    #reset_bag_of_words() #uncomment if using get_data more than once
+    reset_bag_of_words() #uncomment if using get_data more than once
     return data
 
 
@@ -25,14 +26,28 @@ def get_data_as_ngrams(data, stemmer):
 
 
 def bag_of_words(data, stemmer, key_getter, key_iter):
+    classes = extract_categories(data['jokes'], stemmer)
     return [(to_bag_of_words(joke['joke'], stemmer, key_getter, key_iter),
-              to_categorical(joke['categories']))
-             for joke in data['jokes']]
+             to_categorical(joke['categories'], classes, stemmer))
+            for joke in data['jokes']
+            if joke['categories']]
     
+
+def extract_categories(jokes, stemmer):
+    output = {}
+    index = 1
+    for joke in jokes:
+        for category in joke['categories']:
+            stemmed = stemmer.stem(category.lower())
+            if stemmed not in output:
+                output[stemmed] = index
+                index += 1
+    return output
+
 
 def to_bag_of_words(joke, stemmer, key_getter, key_iter):
     try:
-        return [to_bag_of_words.word_indices[key_getter(key, stemmer)]`
+        return [to_bag_of_words.word_indices[key_getter(key, stemmer)]
                 for key in key_iter(joke)]
     except KeyError as error:
         to_bag_of_words.word_indices[error.args[0]] = to_bag_of_words.index
@@ -41,7 +56,7 @@ def to_bag_of_words(joke, stemmer, key_getter, key_iter):
 
 def reset_bag_of_words():
     to_bag_of_words.word_indices = {}
-    to_bag_of_words.index = 0
+    to_bag_of_words.index = 1
 
 reset_bag_of_words()
 
@@ -62,13 +77,11 @@ def iter_word(joke):
     return re.findall(r'\w+', joke)
 
 
-def to_categorical(categories):
-    #TODO, currently it counts categories
-    for c in categories:
-        to_categorical.t[c.lower()] = ""
-    return categories
-
-to_categorical.t = {}
+def to_categorical(categories, classes, stemmer):
+    out = [0] * (len(classes) + 1)
+    out[classes[stemmer.stem(random.choice(categories).lower())]] = 1
+    assert(sum(out) > 0)
+    return out
 
 
 if __name__ == '__main__':
@@ -77,5 +90,3 @@ if __name__ == '__main__':
                    representation='bag_of_words',
                    stemmer=nltk.stem.lancaster.LancasterStemmer())[:10])
     print("Number of unique items after stemming: " + str(to_bag_of_words.index))
-    print("Number of categories: " + str(len(to_categorical.t)))
-    print("Categories: " + str(to_categorical.t.keys()))
