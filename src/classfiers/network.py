@@ -84,16 +84,11 @@ def local_train(args={}):
     X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
     for i in range(40):
         model.fit(X_train, Y_train, n_epoch=1, show_metric=True)
-        compute_metrics(model, X_val, Y_val)
+        Y_pred = get_predictions(model, X_val)
+        compute_metrics(Y_val, Y_pred)
 
 
-def compute_metrics(model, X, Y):
-    predictions = model.predict(X)
-    Y_pred = np.zeros(shape=(len(Y), len(Y[0])))
-    for prediction, y in zip(predictions, Y_pred):
-        y[prediction.argmax()] = 1
-    assert(all(sum(x) > 0 for x in Y_pred))
-
+def compute_metrics(Y, Y_pred):
     precision = 100*metrics.precision_score(Y, Y_pred, average="weighted") 
     recall = 100*metrics.recall_score(Y, Y_pred, average="weighted") 
     accuracy = 100*metrics.accuracy_score(Y, Y_pred)
@@ -105,10 +100,19 @@ def compute_metrics(model, X, Y):
     return precision, recall, accuracy
 
 
+def get_predictions(model, X):
+    predictions = model.predict(X)
+    Y_pred = np.zeros(shape=predicions.shape))
+    for prediction, y in zip(predictions, Y_pred):
+        y[prediction.argmax()] = 1
+    assert(all(sum(x) > 0 for x in Y_pred))
+    return Y_pred
+
+
 if __name__ == '__main__':
     X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
                                   input_format='hot_vector',
                                   output_format='categorical',
                                   stemmer=nltk.stem.lancaster.LancasterStemmer())
     model = create_model(len(X[0]), len(Y[0]))
-    local_train({'X': X, 'Y':Y, 'model':model})
+    local_train({'X': X, 'Y': Y, 'model': model})
