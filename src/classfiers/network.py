@@ -1,6 +1,7 @@
 import asyncio
 import time
 import logging
+import nltk
 
 import tflearn
 import numpy as np
@@ -9,8 +10,8 @@ import pulsar.api as pulsar
 from sklearn import metrics
 
 if __name__ == '__main__':
-    import sys
     import os
+    import sys
     logging.getLogger().setLevel(logging.INFO)
     sys.path.append(os.path.dirname(sys.path[0]))
 
@@ -20,10 +21,11 @@ from utils import split, pad_sequences
 
 
 def run_network_instance(actor, args={}):
-    actor.logger.info("Hello")
-    X, Y = zip(*data_provider.get_data('../scrapper/out/unijokes.json'))
-    pad_sequences(X)
     actor.logger.info(args)
+    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
+                                  input_format='hot_vector',
+                                  output_format='categorical',
+                                  stemmer=nltk.stem.lancaster.LancasterStemmer())
     model = create_model(len(X[0]), len(Y[0]))
     asyncio.ensure_future(network_instance_process(actor, dict(args, **{"model":model, "X":X, "Y":Y})))
 
@@ -71,15 +73,16 @@ def create_model(input_length, output_length, activation='relu'):
     net = tflearn.regression(softmax, 
                              optimizer=sgd,
                              loss='categorical_crossentropy')
-    return net
+    model = tflearn.DNN(net, tensorboard_verbose=0)
+    return model
 
 
 def local_train(args={}):
-    model = tflearn.DNN(args['model'], tensorboard_verbose=0)
+    model = args['model']
     X_train, X_val = split(args['X'], 0.9)
     Y_train, Y_val = split(args['Y'], 0.9)
     X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
-    for i in range(20):
+    for i in range(40):
         model.fit(X_train, Y_train, n_epoch=1, show_metric=True)
         compute_metrics(model, X_val, Y_val)
 
@@ -103,7 +106,9 @@ def compute_metrics(model, X, Y):
 
 
 if __name__ == '__main__':
-    X, Y = zip(*data_provider.get_data('../scrapper/out/unijokes.json'))
-    X = [data_provider.to_hot_vector(x) for x in X]
+    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
+                                  input_format='hot_vector',
+                                  output_format='categorical',
+                                  stemmer=nltk.stem.lancaster.LancasterStemmer())
     model = create_model(len(X[0]), len(Y[0]))
     local_train({'X': X, 'Y':Y, 'model':model})

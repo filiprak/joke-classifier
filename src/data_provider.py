@@ -9,28 +9,61 @@ class NoStemmer:
         return word
 
 
-def get_data(source, representation='bag_of_words', stemmer=NoStemmer()):
+class Tokenizer:
+    def __init__(self, stemmer, key_getter, key_iter):
+        self.word_indices = {}
+        self.index = 1
+        self.stemmer = stemmer
+        self.key_getter = key_getter
+        self.key_iter = key_iter
+
+    def to_bag_of_words(self, joke):
+        try:
+            return [self.word_indices[self.key_getter(key, self.stemmer)]
+                    for key in self.key_iter(joke)]
+        except KeyError as error:
+            self.word_indices[error.args[0]] = self.index
+            self.index += 1
+            return self.to_bag_of_words(joke)
+
+
+def get_data(source, input_format='hot_vector', output_format='categorical', ngrams=False, stemmer=NoStemmer()):
     with open(source) as s:
         data = json.load(s)
-    data = globals()['get_data_as_' + representation](data, stemmer)
-    #reset_bag_of_words() #uncomment if using get_data more than once
-    return data
-
-
-def get_data_as_bag_of_words(data, stemmer):
-    return bag_of_words(data, stemmer, get_word, iter_word)
-
-
-def get_data_as_ngrams(data, stemmer):
-    return bag_of_words(data, stemmer, get_ngram, iter_ngram)
-
-
-def bag_of_words(data, stemmer, key_getter, key_iter):
     classes = extract_categories(data['jokes'], stemmer)
-    return [(to_bag_of_words(joke['joke'], stemmer, key_getter, key_iter),
-             to_categorical(joke['categories'], classes, stemmer))
-            for joke in data['jokes']
-            if joke['categories']]
+    data, tokenizer = (get_data_as_ngrams if ngrams else get_data_as_bag_of_words)(data, stemmer, classes)
+    X, Y = zip(*data)
+
+    if input_format == 'hot_vector':
+        X = [to_hot_vector(x, tokenizer.index) for x in X]
+    elif input_format != 'sequential':
+        raise ValueError("Expected values for 'input_format' are 'hot_vector' or 'sequential'")
+
+    if output_format == 'categorical':
+        Y = [to_categorical(y, classes, stemmer) for y in Y]
+    elif output_format == 'numerical':
+        Y = [to_numerical(y, classes, stemmer) for y in Y]
+    else:
+        raise ValueError("Expected values for 'output_format' are 'categorical' or 'numerical'")
+    
+    return X, Y
+
+
+def get_data_as_bag_of_words(data, stemmer, classes):
+    return bag_of_words(data, stemmer, classes, get_word, iter_word)
+
+
+def get_data_as_ngrams(data, stemmer, classes):
+    return bag_of_words(data, stemmer, classes, get_ngram, iter_ngram)
+
+
+def bag_of_words(data, stemmer, classes, key_getter, key_iter):
+    tokenizer = Tokenizer(stemmer, key_getter, key_iter)
+    return ([(tokenizer.to_bag_of_words(joke['joke']),
+              joke['categories'])
+             for joke in data['jokes']
+             if joke['categories']], 
+            tokenizer)
     
 
 def extract_categories(jokes, stemmer):
@@ -43,22 +76,6 @@ def extract_categories(jokes, stemmer):
                 output[stemmed] = index
                 index += 1
     return output
-
-
-def to_bag_of_words(joke, stemmer, key_getter, key_iter):
-    try:
-        return [to_bag_of_words.word_indices[key_getter(key, stemmer)]
-                for key in key_iter(joke)]
-    except KeyError as error:
-        to_bag_of_words.word_indices[error.args[0]] = to_bag_of_words.index
-        to_bag_of_words.index += 1
-        return to_bag_of_words(joke, stemmer, key_getter, key_iter)
-
-def reset_bag_of_words():
-    to_bag_of_words.word_indices = {}
-    to_bag_of_words.index = 1
-
-reset_bag_of_words()
 
 
 def get_ngram(ngram, stemmer):
@@ -83,9 +100,11 @@ def to_categorical(categories, classes, stemmer):
     return out
 
 
-def to_hot_vector(joke, nclasses=None):
-    if nclasses is None:
-        nclasses = to_bag_of_words.index + 1
+def to_numerical(categories, classes, stemmer):
+    return classes[stemmer.stem(random.choice(categories).lower())]
+
+
+def to_hot_vector(joke, nclasses):
     out = [0] * nclasses
     for word in joke:
         out[word] = 1
@@ -97,4 +116,3 @@ if __name__ == '__main__':
     print(get_data(sys.argv[1],
                    representation='bag_of_words',
                    stemmer=nltk.stem.lancaster.LancasterStemmer())[:10])
-    print("Number of unique items after stemming: " + str(to_bag_of_words.index))
