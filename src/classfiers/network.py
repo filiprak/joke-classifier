@@ -1,6 +1,7 @@
 import asyncio
 import time
 import nltk
+import logging
 
 import tflearn
 import numpy as np
@@ -78,12 +79,18 @@ def create_model(input_length, output_length, activation='relu'):
 
 def local_train(args={}):
     model = args['model']
-    X_train, X_val = split(args['X'], 0.9)
-    Y_train, Y_val = split(args['Y'], 0.9)
-    X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
     models = []
     for i in range(40):
-        model.fit(X_train, Y_train, n_epoch=1, show_metric=True)
+        X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
+                                      input_format='hot_vector',
+                                      output_format='categorical')
+        if not X or not Y:
+            logging.info("Out of data")
+            break
+        X_train, X_val = split(X, 0.9)
+        Y_train, Y_val = split(Y, 0.9)
+        X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
+        model.fit(X_train, Y_train, n_epoch=10, show_metric=True)
         Y_pred = get_predictions(model, X_val)
         compute_metrics(Y_val, Y_pred)
 
@@ -107,8 +114,6 @@ def get_predictions(model, X):
 if __name__ == '__main__':
     X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
                                   input_format='hot_vector',
-                                  output_format='categorical',
-                                  ngrams=True,
-                                  stemmer=nltk.stem.lancaster.LancasterStemmer())
+                                  output_format='categorical')
     model = create_model(len(X[0]), len(Y[0]))
-    local_train({'X': X, 'Y': Y, 'model': model})
+    local_train({'model': model})

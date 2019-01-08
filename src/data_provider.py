@@ -2,6 +2,7 @@ import re
 import nltk
 import json
 import random
+import logging
 
 from pulsar.async.proxy import command
 
@@ -41,13 +42,17 @@ STATE = {
     'data': None,
     'classes': None,
     'stemmer': nltk.stem.lancaster.LancasterStemmer(),
-    'step': 100,
+    'step': 1000,
     'counter': 0
 }
 
 
 @command()
-def get_data(source, input_format='hot_vector', output_format='categorical', ngrams=False):
+def get_data_command(source, input_format='hot_vector', output_format='categorical', ngrams=False):
+    return get_data(source, input_format, output_format, ngrams, all_data=False)
+
+
+def get_data(source, input_format='hot_vector', output_format='categorical', ngrams=False, all_data=False):
     if STATE['data'] is None:
         with open(source) as s:
             data = json.load(s)
@@ -56,6 +61,7 @@ def get_data(source, input_format='hot_vector', output_format='categorical', ngr
         STATE['data'], tokenizer = \
             (get_data_as_ngrams if ngrams else get_data_as_bag_of_words)(data, STATE['stemmer'], STATE['classes'])
 
+    logging.info(len(STATE['data']))
     X, Y = zip(*STATE['data'])
     if STATE['X'][input_format] is None:
         if input_format == 'hot_vector':
@@ -73,11 +79,14 @@ def get_data(source, input_format='hot_vector', output_format='categorical', ngr
         else:
             raise ValueError("Expected values for 'output_format' are 'categorical' or 'numerical'")
 
-
     X = STATE['X'][input_format]
     Y = STATE['Y'][output_format]
-    X = X[counter:counter+['step']]
-    return 1
+    if not all_data:
+        X = X[STATE['counter']:STATE['counter']+STATE['step']]
+        Y = Y[STATE['counter']:STATE['counter']+STATE['step']]
+        STATE['counter'] = STATE['counter'] + STATE['step']
+        logging.info("Get data: {}".format(STATE['counter']))
+    return X, Y
 
 
 def get_data_as_bag_of_words(data, stemmer, classes):
