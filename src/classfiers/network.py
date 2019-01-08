@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
 import data_provider
 
-from utils import split, pad_sequences, compute_metrics
+from utils import split, pad_sequences, compute_metrics, update_model, average_models, serialize_model
 
 
 def run_network_instance(actor, args={}):
@@ -38,8 +38,9 @@ async def network_instance_process(actor, args={}):
                        'progress': 1})
     for i in range(10):
         model.fit(X_train, Y_train, n_epoch=1, show_metric=True)
-        precision, recall, accuracy = compute_metrics(model, X_val, Y_val)
-        await pulsar.send('network_manager_actor', 
+        Y_pred = get_predictions(model, X_val)
+        precision, recall, accuracy = compute_metrics(Y_val, Y_pred)
+        await pulsar.send('network_manager_actor',
                           'network_progress_update', 
                           {'aid': actor.aid,
                            'timestamp': time.time(),
@@ -48,7 +49,7 @@ async def network_instance_process(actor, args={}):
                            'recall': recall,
                            'accuracy': accuracy})
 
-    await pulsar.send('svm_manager_actor', 'svm_model_update', serialize_model(model))
+    await pulsar.send('network_manager_actor', 'network_model_update', serialize_model(model))
     await pulsar.send('network_manager_actor', 
                       'network_progress_update', 
                       {'aid': actor.aid,
@@ -103,25 +104,11 @@ def get_predictions(model, X):
     return Y_pred
 
 
-def serialize_model(model):
-    with model.session.as_default():
-        return np.array([np.array(tflearn.variables.get_value(variable).tolist())
-                         for variable in model.get_train_vars()])
-
-
-def update_model(model, data):
-  for variable, received in zip(model.get_train_vars(), data):
-        model.set_weights(variable, (model.get_weights(variable)+received) / 2.)
-
-
-def average_models(models):
-    return sum(model for model in models) / len(models)
-
-
 if __name__ == '__main__':
     X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
                                   input_format='hot_vector',
                                   output_format='categorical',
+                                  ngrams=True,
                                   stemmer=nltk.stem.lancaster.LancasterStemmer())
     model = create_model(len(X[0]), len(Y[0]))
     local_train({'X': X, 'Y': Y, 'model': model})

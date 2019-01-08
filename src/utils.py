@@ -1,5 +1,8 @@
 import logging
 
+import numpy as np
+import tflearn
+
 logging.getLogger().setLevel(logging.INFO)
 
 from sklearn import metrics
@@ -35,3 +38,18 @@ def compute_metrics(Y, Y_pred):
     logging.info("Accuracy: {:.2f}%".format(accuracy))
 
     return precision, recall, accuracy
+
+
+def serialize_model(model):
+    with model.session.as_default():
+        return np.array([np.array(tflearn.variables.get_value(variable).tolist())
+                         for variable in model.get_train_vars()])
+
+
+def update_model(model, data):
+  for variable, received in zip(model.get_train_vars(), data):
+        model.set_weights(variable, (model.get_weights(variable)+received) / 2.)
+
+
+def average_models(models):
+    return sum(model for model in models) / len(models)

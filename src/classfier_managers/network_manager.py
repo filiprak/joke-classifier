@@ -82,3 +82,5 @@ async def kill_network_instances(request):
         NETWORK_STATE['instances'] = {}
 
     return 'ok'
+
+
