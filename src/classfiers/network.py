@@ -2,6 +2,7 @@ import asyncio
 import time
 import nltk
 import logging
+import gc
 
 import tflearn
 import numpy as np
@@ -58,7 +59,7 @@ async def network_instance_process(actor, args={}):
                        'progress': 101})
 
 
-def create_model(input_length, output_length, activation='relu'):
+def dnn_model(input_length, output_length, activation='relu'):
     input_layer = tflearn.input_data(shape=[None, input_length])
     model = tflearn.fully_connected(input_layer, 
                                     64, 
@@ -77,29 +78,49 @@ def create_model(input_length, output_length, activation='relu'):
     return model
 
 
-def local_train(args={}):
-    model = args['model']
-    models = []
+def lstm_model(input_length, output_length, activation='relu'):
+    input_layer = tflearn.input_data(shape=[None, input_length])
+    model = tflearn.embedding(input_layer, input_dim=data_provider.STATE['tokenizer'].index, output_dim=128)
+    model = tflearn.lstm(model, 128, dropout=0.8)
+    softmax = tflearn.fully_connected(model, output_length, activation='softmax')
+    sgd = tflearn.SGD(learning_rate=0.1, decay_step=1000)
+    net = tflearn.regression(softmax, 
+                             optimizer=sgd,
+                             loss='categorical_crossentropy')
+    model = tflearn.DNN(net, tensorboard_verbose=0)
+    return model
+
+
+def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words', create_model=dnn_model):
+    data_provider.STATE = data_provider.initial_state()
+    data_provider.STATE['stemmer'] = stemmer
+    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
+                                  input_format='hot_vector' if create_model == dnn_model else 'sequential',
+                                  output_format='categorical',
+                                  ngrams=text_representation=='ngrams',
+                                  all_data=True)
+    model = create_model(len(X[0]), len(Y[0]))
+    X_train, X_val = split(X, 0.9)
+    Y_train, Y_val = split(Y, 0.9)
+
+    data_provider.STATE = data_provider.initial_state()
+    del X, Y
+    gc.collect()
+
+    run_id = get_run_id(stemmer, text_representation, create_model)
+    print(run_id)
     for i in range(40):
-        X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                      input_format='hot_vector',
-                                      output_format='categorical')
-        if not X or not Y:
-            logging.info("Out of data")
-            break
-        X_train, X_val = split(X, 0.9)
-        Y_train, Y_val = split(Y, 0.9)
-        X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
-        model.fit(X_train, Y_train, n_epoch=10, show_metric=True)
+        model.fit(X_train, Y_train, n_epoch=5, validation_set=(X_val, Y_val), show_metric=True, run_id=run_id)
         Y_pred = get_predictions(model, X_val)
         compute_metrics(Y_val, Y_pred)
 
-        # This is for demonstration on how to serialize/agregate/update the model
-        models.append(serialize_model(model))
-        if i % 10 == 0 and i != 0:
-            averaged = average_models(models)
-            update_model(model, averaged)
-            # After that, the accuracy of the model should go down (since we've aggregated models from early stages of training)
+
+def get_run_id(stemmer, text, model):
+    return "{} {} {}".format(
+        type(stemmer).__name__,
+        text,
+        model.__name__
+    )
 
 
 def get_predictions(model, X):
@@ -112,8 +133,4 @@ def get_predictions(model, X):
 
 
 if __name__ == '__main__':
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector',
-                                  output_format='categorical')
-    model = create_model(len(X[0]), len(Y[0]))
-    local_train({'model': model})
+    local_train(create_model=lstm_model)

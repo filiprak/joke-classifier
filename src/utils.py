@@ -25,7 +25,7 @@ def pad_sequences(sequences):
     max_len = len(max(sequences, key=lambda s: len(s)))
     for sequence in sequences:
         sequence += [0] * (max_len - len(sequence))
-    return sequences
+    return np.array(sequences)
 
 
 def compute_metrics(Y, Y_pred):
@@ -33,9 +33,9 @@ def compute_metrics(Y, Y_pred):
     recall = 100*metrics.recall_score(Y, Y_pred, average="weighted") 
     accuracy = 100*metrics.accuracy_score(Y, Y_pred)
 
-    logging.info("Precision: {:.2f}%".format(precision))
-    logging.info("Recall: {:.2f}%".format(recall))
-    logging.info("Accuracy: {:.2f}%".format(accuracy))
+    logging.info(">>> Precision: {:.2f}%".format(precision))
+    logging.info(">>> Recall: {:.2f}%".format(recall))
+    logging.info(">>> Accuracy: {:.2f}%".format(accuracy))
 
     return precision, recall, accuracy
 

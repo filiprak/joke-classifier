@@ -1,6 +1,7 @@
 import time
 import asyncio
 import nltk
+import gc
 
 if __name__ == '__main__':
     import os
@@ -41,20 +42,30 @@ def create_model():
     return naive_bayes.MultinomialNB()
 
 
-def local_train(args={}):
-    model = args['model']
-    X_train, X_val = split(args['X'], 0.9)
-    Y_train, Y_val = split(args['Y'], 0.9)
-    X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
+def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words'):
+    data_provider.STATE = data_provider.initial_state()
+    data_provider.STATE['stemmer'] = stemmer
+    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
+                                  input_format='hot_vector',
+                                  output_format='numerical',
+                                  ngrams=text_representation=='ngrams',
+                                  all_data=True)
+    model = create_model()
+    X_train, X_val = split(X, 0.9)
+    Y_train, Y_val = split(Y, 0.9)
+
+    data_provider.STATE = data_provider.initial_state()
+    del X, Y
+    gc.collect()
+    #X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
+    data_provider.STATE = data_provider.initial_state()
+    print(">>> {} {} {}".format(type(stemmer).__name__, text_representation, 'bayes'))
+    start = time.time()
     model.fit(X_train, Y_train)
+    print(">>> TRAINING TIME: {}s".format(time.time() - start))
     Y_pred = model.predict(X_val)
     compute_metrics(Y_val, Y_pred)
 
 
 if __name__ == '__main__':
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector',
-                                  output_format='numerical',
-                                  stemmer=nltk.stem.lancaster.LancasterStemmer())
-    model = create_model()
-    local_train({'X': X, 'Y': Y, 'model': model})
+    local_train()
