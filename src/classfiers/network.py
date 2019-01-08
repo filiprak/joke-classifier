@@ -19,13 +19,7 @@ from utils import split, pad_sequences, compute_metrics, update_model, average_m
 
 
 def run_network_instance(actor, args={}):
-    actor.logger.info(args)
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector',
-                                  output_format='categorical',
-                                  stemmer=nltk.stem.lancaster.LancasterStemmer())
-    model = create_model(len(X[0]), len(Y[0]))
-    asyncio.ensure_future(network_instance_process(actor, dict(args, **{"model":model, "X":X, "Y":Y})))
+    asyncio.ensure_future(network_instance_process(actor, args))
 
 
 async def network_instance_process(actor, args={}):
@@ -59,6 +53,7 @@ async def network_instance_process(actor, args={}):
                        'progress': 101})
 
 
+<<<<<<< HEAD
 def dnn_model(input_length, output_length, activation='relu'):
     input_layer = tflearn.input_data(shape=[None, input_length])
     model = tflearn.fully_connected(input_layer, 

@@ -24,13 +24,18 @@ class Tokenizer:
         self.key_iter = key_iter
 
     def to_bag_of_words(self, joke):
-        try:
-            return [self.word_indices[self.key_getter(key, self.stemmer)]
-                    for key in self.key_iter(joke)]
-        except KeyError as error:
-            self.word_indices[error.args[0]] = self.index
-            self.index += 1
-            return self.to_bag_of_words(joke)
+        result = []
+        for key in self.key_iter(joke):
+            try:
+                idx = self.word_indices[self.key_getter(key, self.stemmer)]
+                result.append(idx)
+
+            except KeyError as error:
+                self.word_indices[error.args[0]] = self.index
+                result.append(self.index)
+                self.index += 1
+
+        return result
 
 
 def initial_state():
@@ -47,7 +52,10 @@ def initial_state():
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
         'step': 1000,
-        'counter': 0
+        'counter': 0,
+
+        'source': '../scrapper/out/unijokes.json',
+        'max_jokes': 100000,
     }
 
 
@@ -55,44 +63,58 @@ STATE = initial_state()
 
 
 @command()
-def get_data_command(source, input_format='hot_vector', output_format='categorical', ngrams=False):
-    return get_data(source, input_format, output_format, ngrams, all_data=False)
+def data_provider_info():
+    return {
+        'X': STATE['X'],
+        'Y': STATE['Y'],
+        'step': STATE['step'],
+        'counter': STATE['counter'],
+        'source': STATE['source'],
+    }
 
 
-def get_data(source, input_format='hot_vector', output_format='categorical', ngrams=False, all_data=False):
-    if STATE['data'] is None:
-        with open(source) as s:
-            data = json.load(s)
+@command()
+def init_data_provider_command(ngrams=False):
+    init_data_provider(ngrams)
+    return 'ok'
 
-        STATE['classes'] = extract_categories(data['jokes'], STATE['stemmer'])
-        STATE['data'], STATE['tokenizer'] = \
-            (get_data_as_ngrams if ngrams else get_data_as_bag_of_words)(data, STATE['stemmer'], STATE['classes'])
 
-    logging.info(len(STATE['data']))
+@command()
+def get_data_command(input_format='hot_vector', output_format='categorical', ngrams=False):
+    return get_data(input_format, output_format, ngrams, all_data=False)
+
+
+def init_data_provider(ngrams=False):
+    logging.info('Data provider, loading file: ' + STATE['source'])
+    with open(STATE['source']) as s:
+        data = json.load(s)
+
+    data['jokes'] = data['jokes'][:STATE['max_jokes']]
+    logging.info('Data provider, extracting categories...')
+    STATE['classes'] = extract_categories(data['jokes'], STATE['stemmer'])
+    logging.info('Data provider, tokenizing data...')
+    STATE['data'], STATE['tokenizer'] = \
+        (get_data_as_ngrams if ngrams else get_data_as_bag_of_words)(data, STATE['stemmer'], STATE['classes'])
+
     X, Y = zip(*STATE['data'])
-    if STATE['X'][input_format] is None:
-        if input_format == 'hot_vector':
-            STATE['X'][input_format] = np.empty((len(X), STATE['tokenizer'].index))
-            for i, e in enumerate(X): STATE['X'][input_format][i] = to_hot_vector(e, STATE['tokenizer'].index)
-            #STATE['X'][input_format] = np.array(to_hot_vector(x, STATE['tokenizer'].index) for x in X)
-        elif input_format == 'sequential':
-            STATE['X'][input_format] = utils.pad_sequences(X)
-        else:
-            raise ValueError("Expected values for 'input_format' are 'hot_vector' or 'sequential'")
+    STATE['X']['hot_vector'] = np.empty((len(X), STATE['tokenizer'].index))
+    for i, e in enumerate(X): STATE['X']['hot_vector'][i] = to_hot_vector(e, STATE['tokenizer'].index)
+    STATE['X']['sequential'] = utils.pad_sequences(X)
+    STATE['Y']['categorical'] = np.array([to_categorical(y, STATE['classes'], STATE['stemmer']) for y in Y])
+    STATE['Y']['numerical'] = np.array([to_numerical(y, STATE['classes'], STATE['stemmer']) for y in Y])
 
-    if STATE['Y'][output_format] is None:
-        if output_format == 'categorical':
-            STATE['Y'][output_format] = np.array([to_categorical(y, STATE['classes'], STATE['stemmer']) for y in Y])
-        elif output_format == 'numerical':
-            STATE['Y'][output_format] = np.array([to_numerical(y, STATE['classes'], STATE['stemmer']) for y in Y])
-        else:
-            raise ValueError("Expected values for 'output_format' are 'categorical' or 'numerical'")
+
+def get_data(input_format='hot_vector', output_format='categorical', ngrams=False, all_data=False):
+    if input_format not in ['hot_vector', 'sequential']:
+        raise ValueError("Expected values for 'input_format' are 'hot_vector' or 'sequential'")
+    if output_format not in ['numerical', 'categorical']:
+        raise ValueError("Expected values for 'output_format' are 'categorical' or 'numerical'")
 
     X = STATE['X'][input_format]
     Y = STATE['Y'][output_format]
     if not all_data:
-        X = X[STATE['counter']:STATE['counter']+STATE['step']]
-        Y = Y[STATE['counter']:STATE['counter']+STATE['step']]
+        X = X[STATE['counter']:STATE['counter'] + STATE['step']]
+        Y = Y[STATE['counter']:STATE['counter'] + STATE['step']]
         STATE['counter'] = STATE['counter'] + STATE['step']
         logging.info("Get data: {}".format(STATE['counter']))
     return X, Y
@@ -113,7 +135,7 @@ def bag_of_words(data, stemmer, classes, key_getter, key_iter):
              for joke in data['jokes']
              if joke['categories']],
             tokenizer)
-    
+
 
 def extract_categories(jokes, stemmer):
     output = {}
@@ -162,6 +184,6 @@ def to_hot_vector(joke, nclasses):
 
 if __name__ == '__main__':
     import sys
-    print(get_data(sys.argv[1],
-                   representation='bag_of_words',
-                   stemmer=nltk.stem.lancaster.LancasterStemmer())[:10])
+    STATE['source'] = sys.argv[1]
+    init_data_provider()
+    print(get_data()[:2])
