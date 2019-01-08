@@ -18,13 +18,7 @@ from utils import split, pad_sequences, compute_metrics, update_model, average_m
 
 
 def run_network_instance(actor, args={}):
-    actor.logger.info(args)
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector',
-                                  output_format='categorical',
-                                  stemmer=nltk.stem.lancaster.LancasterStemmer())
-    model = create_model(len(X[0]), len(Y[0]))
-    asyncio.ensure_future(network_instance_process(actor, dict(args, **{"model":model, "X":X, "Y":Y})))
+    asyncio.ensure_future(network_instance_process(actor, args))
 
 
 async def network_instance_process(actor, args={}):
@@ -56,25 +50,6 @@ async def network_instance_process(actor, args={}):
                       {'aid': actor.aid,
                        'timestamp': time.time(),
                        'progress': 101})
-
-
-def create_model(input_length, output_length, activation='relu'):
-    input_layer = tflearn.input_data(shape=[None, input_length])
-    model = tflearn.fully_connected(input_layer, 
-                                    64, 
-                                    activation=activation)
-    model = tflearn.dropout(model, 0.8)
-    model = tflearn.fully_connected(input_layer, 
-                                    64, 
-                                    activation=activation)
-    model = tflearn.dropout(model, 0.8)
-    softmax = tflearn.fully_connected(model, output_length, activation='softmax')
-    sgd = tflearn.SGD(learning_rate=0.1, decay_step=1000)
-    net = tflearn.regression(softmax, 
-                             optimizer=sgd,
-                             loss='categorical_crossentropy')
-    model = tflearn.DNN(net, tensorboard_verbose=0)
-    return model
 
 
 def local_train(args={}):

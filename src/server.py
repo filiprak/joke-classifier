@@ -6,12 +6,15 @@ import pulsar.apps.wsgi as wsgi
 from pulsar.apps.wsgi import AccessControl
 
 import classfier_managers.network_manager, classfier_managers.bayes_manager, classfier_managers.svm_manager
+from data_provider import init_data_provider
 
 app = wsgi.Router('/')
 
 arbiter = pulsar.arbiter()
 algorithm_opts = ['svm', 'bayes', 'network', 'all']
+
 svm_manager_actor, bayes_manager_actor, network_manager_actor = None, None, None
+data_provider = None
 
 
 async def spawn_managers(algo='all'):
@@ -25,6 +28,12 @@ async def spawn_managers(algo='all'):
 
     if not network_manager_actor and algo in ['network', 'all']:
         network_manager_actor = await pulsar.spawn(name='network_manager_actor', aid='network_manager_actor')
+
+
+async def spawn_data_provider():
+    global data_provider
+    if not data_provider:
+        data_provider = await pulsar.spawn(name='data_provider', aid='data_provider', start=init_data_provider)
 
 
 @app.router('/start_learning', methods=['get'])
@@ -113,6 +122,11 @@ def spawn_managers_wrapper(algo):
     asyncio.ensure_future(spawn_managers(algo))
 
 
+def spawn_data_provider_wrapper():
+    asyncio.ensure_future(spawn_data_provider())
+
+
 if __name__ == '__main__':
     asyncio.get_event_loop().call_later(1, spawn_managers_wrapper, 'all')
+    asyncio.get_event_loop().call_later(1, spawn_data_provider_wrapper)
     wsgi.WSGIServer(callable=wsgi_setup()).start()
