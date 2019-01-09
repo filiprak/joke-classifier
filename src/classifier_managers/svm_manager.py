@@ -4,7 +4,7 @@ import os
 import pulsar.api as pulsar
 from pulsar.async.proxy import command
 
-from classfiers.svm import run_svm_instance
+from classifiers.svm import run_svm_instance
 
 NUMBER_SVM_INSTANCES = 1
 

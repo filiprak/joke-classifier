@@ -48,14 +48,26 @@ def initial_state():
             'categorical': None,
             'numerical': None,
         },
+
+        'model_params': {
+            'input_length': {
+                'sequential': None,
+                'hot_vector': None
+            },
+            'output_length': {
+                'categorical': None,
+                'numerical': None,
+            }
+        },
+
         'data': None,
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
-        'step': 1000,
+        'step': 300,
         'counter': 0,
 
         'source': '../scrapper/out/unijokes.json',
-        'max_jokes': 100000,
+        'max_jokes': 5000,
     }
 
 
@@ -63,10 +75,18 @@ STATE = initial_state()
 
 
 @command()
-def data_provider_info():
+def data_provider_info(request):
     return {
-        'X': STATE['X'],
-        'Y': STATE['Y'],
+        'X_length': {
+            'sequential': len(STATE['X']['sequential']),
+            'hot_vector': len(STATE['X']['hot_vector'])
+        },
+        'Y_length': {
+            'categorical': len(STATE['Y']['categorical']),
+            'numerical': len(STATE['Y']['numerical']),
+        },
+        'model_params': STATE['model_params'],
+        'classes_num': len(STATE['classes']),
         'step': STATE['step'],
         'counter': STATE['counter'],
         'source': STATE['source'],
@@ -74,17 +94,27 @@ def data_provider_info():
 
 
 @command()
-def init_data_provider_command(ngrams=False):
+def init_data_provider_command(request, ngrams=False):
     init_data_provider(ngrams)
     return 'ok'
 
 
 @command()
-def get_data_command(input_format='hot_vector', output_format='categorical', ngrams=False):
-    return get_data(input_format, output_format, ngrams, all_data=False)
+def get_data_command(request, args={}):
+    if 'input_format' not in args:
+        raise ValueError("get_data_command(): Expected values for 'input_format' are 'hot_vector' or 'sequential'")
+    if 'output_format' not in args:
+        raise ValueError("get_data_command(): Expected values for 'output_format' are 'categorical' or 'numerical'")
+
+    ngrams = False
+    if 'ngrams' in args:
+        ngrams = args['ngrams']
+
+    return get_data(args['input_format'], args['output_format'], ngrams, False)
 
 
 def init_data_provider(ngrams=False):
+    logging.info('Data provider, initializing: ngrams = {}'.format(ngrams))
     logging.info('Data provider, loading file: ' + STATE['source'])
     with open(STATE['source']) as s:
         data = json.load(s)
@@ -98,10 +128,19 @@ def init_data_provider(ngrams=False):
 
     X, Y = zip(*STATE['data'])
     STATE['X']['hot_vector'] = np.empty((len(X), STATE['tokenizer'].index))
-    for i, e in enumerate(X): STATE['X']['hot_vector'][i] = to_hot_vector(e, STATE['tokenizer'].index)
+    for i, e in enumerate(X):
+        STATE['X']['hot_vector'][i] = to_hot_vector(e, STATE['tokenizer'].index)
     STATE['X']['sequential'] = utils.pad_sequences(X)
     STATE['Y']['categorical'] = np.array([to_categorical(y, STATE['classes'], STATE['stemmer']) for y in Y])
     STATE['Y']['numerical'] = np.array([to_numerical(y, STATE['classes'], STATE['stemmer']) for y in Y])
+
+    STATE['model_params']['input_length']['hot_vector'] = len(STATE['X']['hot_vector'][0])
+    STATE['model_params']['input_length']['sequential'] = len(STATE['X']['sequential'][0])
+    STATE['model_params']['output_length']['categorical'] = len(STATE['Y']['categorical'][0])
+    STATE['model_params']['output_length']['numerical'] = 1
+
+    logging.info(
+        'Data provider, finished loading [' + str(len(data['jokes'])) + ' jokes] from file: ' + STATE['source'])
 
 
 def get_data(input_format='hot_vector', output_format='categorical', ngrams=False, all_data=False):
@@ -184,6 +223,7 @@ def to_hot_vector(joke, nclasses):
 
 if __name__ == '__main__':
     import sys
+
     STATE['source'] = sys.argv[1]
     init_data_provider()
     print(get_data()[:2])

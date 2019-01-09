@@ -4,7 +4,7 @@ import os
 import pulsar.api as pulsar
 from pulsar.async.proxy import command
 
-from classfiers.bayes import run_bayes_instance
+from classifiers.bayes import run_bayes_instance
 
 NUMBER_BAYES_INSTANCES = 1
 

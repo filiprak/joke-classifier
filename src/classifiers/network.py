@@ -1,12 +1,14 @@
 import asyncio
-import time
-import nltk
 import logging
+import tensorflow as tf
+import time
 import gc
 
 import tflearn
 import numpy as np
 import pulsar.api as pulsar
+
+from classifier_models.network_model import create_model
 
 if __name__ == '__main__':
     import os
@@ -15,7 +17,7 @@ if __name__ == '__main__':
 
 import data_provider
 
-from utils import split, pad_sequences, compute_metrics, update_model, average_models, serialize_model
+from utils import *
 
 
 def run_network_instance(actor, args={}):
@@ -23,16 +25,31 @@ def run_network_instance(actor, args={}):
 
 
 async def network_instance_process(actor, args={}):
-    model = tflearn.DNN(args['model'], tensorboard_verbose=0)
-    X_train, X_val = split(args['X'], 0.9)
-    Y_train, Y_val = split(args['Y'], 0.9)
+    # prevent strange "IndexError: list index out of range" error
+    actor.logger.info('execute tf.reset_default_graph()')
+    tf.reset_default_graph()
+
+    actor.logger.info('Init tensorflow model')
+    model = create_model(args['in_len'], args['out_len'], args['activation'])
+
+    actor.logger.info('Fill model with initial weights')
+    fill_model(model, args['model'])
+
+    # request for single data pack
+    X_data, Y_data = await pulsar.send('data_provider', 'get_data_command', args)
+
+    X_train, X_val = split(X_data, 0.9)
+    Y_train, Y_val = split(Y_data, 0.9)
     X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
     await pulsar.send('network_manager_actor', 
                       'network_progress_update', 
                       {'aid': actor.aid,
                        'timestamp': time.time(),
                        'progress': 1})
-    for i in range(10):
+
+    learn_iters = 10
+
+    for i in range(learn_iters):
         model.fit(X_train, Y_train, n_epoch=1, show_metric=True)
         Y_pred = get_predictions(model, X_val)
         precision, recall, accuracy = compute_metrics(Y_val, Y_pred)
@@ -40,12 +57,17 @@ async def network_instance_process(actor, args={}):
                           'network_progress_update', 
                           {'aid': actor.aid,
                            'timestamp': time.time(),
-                           'progress': (i+1) * 10,
+                           'progress': (i+1) * learn_iters,
                            'precision': precision,
                            'recall': recall,
                            'accuracy': accuracy})
 
-    await pulsar.send('network_manager_actor', 'network_model_update', serialize_model(model))
+    model_serial = serialize_model(model)
+    actor.logger.info('sending model (size = {}) update to super-classifier...'.format(model_sizeMB(model_serial)))
+
+    await pulsar.send('network_manager_actor', 'network_model_update', model_serial)
+
+    actor.logger.info('sending finish notify to super-classifier...')
     await pulsar.send('network_manager_actor', 
                       'network_progress_update', 
                       {'aid': actor.aid,
@@ -53,7 +75,6 @@ async def network_instance_process(actor, args={}):
                        'progress': 101})
 
 
-<<<<<<< HEAD
 def dnn_model(input_length, output_length, activation='relu'):
     input_layer = tflearn.input_data(shape=[None, input_length])
     model = tflearn.fully_connected(input_layer, 
@@ -87,14 +108,18 @@ def lstm_model(input_length, output_length, activation='relu'):
 
 
 def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words', create_model=dnn_model):
-    data_provider.STATE = data_provider.initial_state()
     data_provider.STATE['stemmer'] = stemmer
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector' if create_model == dnn_model else 'sequential',
+    X, Y = data_provider.get_data(input_format='hot_vector' if create_model == dnn_model else 'sequential',
                                   output_format='categorical',
                                   ngrams=text_representation=='ngrams',
                                   all_data=True)
+    print(len(X), len(Y))
+    print(data_provider.STATE['model_params'])
+    print(len(X[0]), len(Y[0]))
+    exit(0)
+
     model = create_model(len(X[0]), len(Y[0]))
+
     X_train, X_val = split(X, 0.9)
     Y_train, Y_val = split(Y, 0.9)
 
@@ -128,4 +153,4 @@ def get_predictions(model, X):
 
 
 if __name__ == '__main__':
-    local_train(create_model=lstm_model)
+    local_train()

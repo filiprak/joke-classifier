@@ -3,9 +3,9 @@ import sys
 from nltk.stem import *
 
 import data_provider
-import classfiers.network
-import classfiers.svm
-import classfiers.bayes
+import classifiers.network
+import classifiers.svm
+import classifiers.bayes
 
 STEMMERS = [
     data_provider.NoStemmer(),
@@ -20,8 +20,8 @@ TEXT_REPRESENTATIONS = [
 ]
 
 MODELS = [
-    classfiers.network.dnn_model,
-    classfiers.network.lstm_model,
+    classifiers.network.dnn_model,
+    classifiers.network.lstm_model,
 ]
 
 C_VALUES = [
@@ -42,15 +42,17 @@ ITER_VALUES = [
     100000
 ]
 
+
 def main():
     for stemmer in STEMMERS:
         for text_representation in TEXT_REPRESENTATIONS:
             for model in MODELS:
-                classfiers.network.local_train(stemmer, text_representation, model)
+                classifiers.network.local_train(stemmer, text_representation, model)
             for C in C_VALUES:
                 for iter_value in ITER_VALUES:
-                    classfiers.svm.local_train(stemmer, text_representation, C, iter_value)
-            classfiers.bayes.local_train(stemmer, text_representation)
+                    classifiers.svm.local_train(stemmer, text_representation, C, iter_value)
+            classifiers.bayes.local_train(stemmer, text_representation)
+
 
 if __name__ == '__main__':
     sys.exit(main())

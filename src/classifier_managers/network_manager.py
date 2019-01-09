@@ -1,14 +1,15 @@
 import asyncio
+import logging
 import os
 
 import pulsar.api as pulsar
-import tflearn
 from pulsar.async.proxy import command
 
-from classfiers.network import run_network_instance
+from classifier_models.network_model import create_model
+from classifiers.network import run_network_instance
+from utils import average_models, serialize_model, update_model, model_size, model_sizeMB
 
-NUMBER_NETWORK_INSTANCES = 3
-
+NUMBER_NETWORK_INSTANCES = 1
 
 NETWORK_STATE = {
     'model': None,
@@ -25,16 +26,31 @@ async def run_network_instances(args):
 
     dpinfo = await pulsar.send('data_provider', 'data_provider_info')
 
-    model = create_model(100, 100)
+    input_format = 'hot_vector'
+    output_format = 'categorical'
 
-    NETWORK_STATE['model'] = model
+    input_length = dpinfo['model_params']['input_length'][input_format]
+    output_length = dpinfo['model_params']['output_length'][output_format]
+    activ = 'relu'
+
+    if NETWORK_STATE['model'] is None:
+        model = create_model(input_length, output_length, activation=activ)
+
+        logging.info(
+            'NETWORK SUPER-MODEL INIT (size = {}, X:{}->Y:{})'.format(model_sizeMB(serialize_model(model)),
+                                                                                  input_length, output_length))
+
+        NETWORK_STATE['model'] = serialize_model(model)
 
     for (aid, inst) in NETWORK_STATE['instances'].items():
-        asyncio.ensure_future(pulsar.send(aid, 'run', run_network_instance, args=dict(args, **{'model': model})))
+        asyncio.ensure_future(
+            pulsar.send(aid, 'run', run_network_instance,
+                        args=dict(args, **{'model': NETWORK_STATE['model'], 'in_len': input_length,
+                                           'out_len': output_length, 'activation': activ,
+                                           'input_format': input_format, 'output_format': output_format})))
 
 
 async def spawn_network_instances(n=1):
-
     for i in range(n):
         aid = 'network_instance' + str(i)
         if aid not in NETWORK_STATE['instances']:
@@ -46,27 +62,6 @@ async def spawn_network_instances(n=1):
                 'progress_timestamp': 0,
             }
 
-    print(NETWORK_STATE['instances'])
-
-
-def create_model(input_length, output_length, activation='relu'):
-    input_layer = tflearn.input_data(shape=[None, input_length])
-    model = tflearn.fully_connected(input_layer,
-                                    64,
-                                    activation=activation)
-    model = tflearn.dropout(model, 0.8)
-    model = tflearn.fully_connected(input_layer,
-                                    64,
-                                    activation=activation)
-    model = tflearn.dropout(model, 0.8)
-    softmax = tflearn.fully_connected(model, output_length, activation='softmax')
-    sgd = tflearn.SGD(learning_rate=0.1, decay_step=1000)
-    net = tflearn.regression(softmax,
-                             optimizer=sgd,
-                             loss='categorical_crossentropy')
-    model = tflearn.DNN(net, tensorboard_verbose=0)
-    return model
-
 
 @command()
 async def run_network_learning(request, args):
@@ -76,16 +71,15 @@ async def run_network_learning(request, args):
 
 
 @command()
-def network_model_update(request, message):
-    request.actor.logger.info('updating model: ' + str(message))
-    NETWORK_STATE['model'] = message
+def network_model_update(request, received_model):
+    request.actor.logger.info('updating model (averaging)')
+    NETWORK_STATE['model'] = average_models([NETWORK_STATE['model'], received_model])
     return 'ok'
 
 
 @command()
 def network_progress_update(request, message):
     request.actor.logger.info('got progress update: ' + str(message))
-    request.actor.logger.info('extra (pid = ' + str(os.getpid()) + '): ' + str(NETWORK_STATE))
 
     if message['timestamp'] > NETWORK_STATE['instances'][message['aid']]['progress_timestamp']:
         NETWORK_STATE['instances'][message['aid']]['progress'] = message['progress']
@@ -110,5 +104,3 @@ async def kill_network_instances(request):
         NETWORK_STATE['instances'] = {}
 
     return 'ok'
-
-
