@@ -75,7 +75,6 @@ def update_model(model, data):
 
 def fill_model(empty_model, data):
     for variable, received in zip(empty_model.get_train_vars(), data):
-        logging.warning(str(variable) + ' = ' + str(received))
         empty_model.set_weights(variable, received)
 
 

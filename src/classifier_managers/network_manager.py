@@ -9,7 +9,7 @@ from classifier_models.network_model import create_model
 from classifiers.network import run_network_instance
 from utils import average_models, serialize_model, update_model, model_size, model_sizeMB
 
-NUMBER_NETWORK_INSTANCES = 1
+NUMBER_NETWORK_INSTANCES = 3
 
 NETWORK_STATE = {
     'model': None,
