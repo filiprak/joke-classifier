@@ -43,10 +43,8 @@ def create_model():
 
 
 def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words'):
-    data_provider.STATE = data_provider.initial_state()
     data_provider.STATE['stemmer'] = stemmer
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector',
+    X, Y = data_provider.get_data(input_format='hot_vector',
                                   output_format='numerical',
                                   ngrams=text_representation=='ngrams',
                                   all_data=True)
@@ -68,4 +66,8 @@ def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-w
 
 
 if __name__ == '__main__':
-    local_train()
+    from nltk.stem import *
+    data_provider.init_data_provider(ngrams=True)
+    #local_train(stemmer=porter.PorterStemmer())
+    #local_train(stemmer=lancaster.LancasterStemmer())
+    local_train(stemmer=lancaster.LancasterStemmer(), text_representation='ngrams')

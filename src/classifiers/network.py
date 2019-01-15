@@ -113,10 +113,6 @@ def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-w
                                   output_format='categorical',
                                   ngrams=text_representation=='ngrams',
                                   all_data=True)
-    print(len(X), len(Y))
-    print(data_provider.STATE['model_params'])
-    print(len(X[0]), len(Y[0]))
-    exit(0)
 
     model = create_model(len(X[0]), len(Y[0]))
 

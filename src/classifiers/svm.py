@@ -50,8 +50,7 @@ def create_model(C, max_iter):
 def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words', C=1e3, max_iter=10000):
     data_provider.STATE = data_provider.initial_state()
     data_provider.STATE['stemmer'] = stemmer
-    X, Y = data_provider.get_data('../scrapper/out/unijokes.json', 
-                                  input_format='hot_vector',
+    X, Y = data_provider.get_data(input_format='hot_vector',
                                   output_format='numerical',
                                   ngrams=text_representation=='ngrams',
                                   all_data=True)

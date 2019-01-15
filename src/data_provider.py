@@ -59,15 +59,14 @@ def initial_state():
                 'numerical': None,
             }
         },
-
         'data': None,
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
-        'step': 300,
+        'step': 1000,
         'counter': 0,
 
         'source': '../scrapper/out/unijokes.json',
-        'max_jokes': 5000,
+        'max_jokes': 20000,
     }
 
 
