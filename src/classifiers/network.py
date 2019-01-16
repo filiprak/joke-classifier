@@ -96,8 +96,8 @@ def dnn_model(input_length, output_length, activation='relu'):
 
 def lstm_model(input_length, output_length, activation='relu'):
     input_layer = tflearn.input_data(shape=[None, input_length])
-    model = tflearn.embedding(input_layer, input_dim=data_provider.STATE['tokenizer'].index, output_dim=128)
-    model = tflearn.lstm(model, 128, dropout=0.8)
+    model = tflearn.embedding(input_layer, input_dim=data_provider.STATE['tokenizer'].index, output_dim=64)
+    model = tflearn.lstm(model, 64, dropout=0.8)
     softmax = tflearn.fully_connected(model, output_length, activation='softmax')
     sgd = tflearn.SGD(learning_rate=0.1, decay_step=1000)
     net = tflearn.regression(softmax, 
@@ -108,7 +108,7 @@ def lstm_model(input_length, output_length, activation='relu'):
 
 
 def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words', create_model=dnn_model):
-    data_provider.STATE['stemmer'] = stemmer
+    data_provider.init_data_provider(ngrams=False)
     X, Y = data_provider.get_data(input_format='hot_vector' if create_model == dnn_model else 'sequential',
                                   output_format='categorical',
                                   ngrams=text_representation=='ngrams',
