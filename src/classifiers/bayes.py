@@ -70,4 +70,4 @@ if __name__ == '__main__':
     data_provider.init_data_provider(ngrams=True)
     #local_train(stemmer=porter.PorterStemmer())
     #local_train(stemmer=lancaster.LancasterStemmer())
-    local_train(stemmer=lancaster.LancasterStemmer(), text_representation='ngrams')
+    local_train(stemmer=lancaster.LancasterStemmer())

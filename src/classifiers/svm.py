@@ -47,8 +47,7 @@ def create_model(C, max_iter):
     return svm.LinearSVC(C=C, max_iter=max_iter)
 
 
-def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words', C=1e3, max_iter=10000):
-    data_provider.STATE = data_provider.initial_state()
+def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-words', C=1, max_iter=10000):
     data_provider.STATE['stemmer'] = stemmer
     X, Y = data_provider.get_data(input_format='hot_vector',
                                   output_format='numerical',
@@ -72,4 +71,5 @@ def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-w
 
 
 if __name__ == '__main__':
-    local_train(text_representation='ngrams', max_iter=100000)
+    data_provider.init_data_provider()
+    local_train(max_iter=100000)
