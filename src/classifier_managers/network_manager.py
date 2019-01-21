@@ -38,16 +38,20 @@ async def run_network_instances(args):
 
         logging.info(
             'NETWORK SUPER-MODEL INIT (size = {}, X:{}->Y:{})'.format(model_sizeMB(serialize_model(model)),
-                                                                                  input_length, output_length))
+                                                                      input_length, output_length))
 
         NETWORK_STATE['model'] = serialize_model(model)
 
+    instance_args = dict(args, **{'model': NETWORK_STATE['model'], 'in_len': input_length,
+                                  'out_len': output_length, 'activation': activ,
+                                  'input_format': input_format, 'output_format': output_format})
+
+    #logging.warning(instance_args)
+
     for (aid, inst) in NETWORK_STATE['instances'].items():
         asyncio.ensure_future(
-            pulsar.send(aid, 'run', run_network_instance,
-                        args=dict(args, **{'model': NETWORK_STATE['model'], 'in_len': input_length,
-                                           'out_len': output_length, 'activation': activ,
-                                           'input_format': input_format, 'output_format': output_format})))
+            pulsar.send(aid, 'run', run_network_instance, args=instance_args)
+        )
 
 
 async def spawn_network_instances(n=1):
@@ -61,11 +65,14 @@ async def spawn_network_instances(n=1):
                 'progress': 0,
                 'progress_timestamp': 0,
             }
+        else:
+            NETWORK_STATE['instances'][aid]['progress'] = 0
+            NETWORK_STATE['instances'][aid]['progress_timestamp'] = 0
 
 
 @command()
 async def run_network_learning(request, args):
-    request.actor.logger.info('run_network_learning: ' + str(args))
+    request.actor.logger.info('run_network_learning')
     run_network_manager(args)
     return 'ok'
 
@@ -79,7 +86,7 @@ def network_model_update(request, received_model):
 
 @command()
 def network_progress_update(request, message):
-    request.actor.logger.info('got progress update: ' + str(message))
+    request.actor.logger.info('got progress update')
 
     if message['timestamp'] > NETWORK_STATE['instances'][message['aid']]['progress_timestamp']:
         NETWORK_STATE['instances'][message['aid']]['progress'] = message['progress']

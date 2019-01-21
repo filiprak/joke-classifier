@@ -62,11 +62,11 @@ def initial_state():
         'data': None,
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
-        'step': 1000,
+        'step': 100,
         'counter': 0,
 
         'source': '../scrapper/out/unijokes.json',
-        'max_jokes': 20000,
+        'max_jokes': 6000,
     }
 
 

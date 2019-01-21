@@ -33,7 +33,8 @@ async def network_instance_process(actor, args={}):
     model = create_model(args['in_len'], args['out_len'], args['activation'])
 
     actor.logger.info('Fill model with initial weights')
-    fill_model(model, args['model'])
+    if 'model' in args:
+        fill_model(model, args['model'])
 
     # request for single data pack
     X_data, Y_data = await pulsar.send('data_provider', 'get_data_command', args)
@@ -41,6 +42,7 @@ async def network_instance_process(actor, args={}):
     X_train, X_val = split(X_data, 0.9)
     Y_train, Y_val = split(Y_data, 0.9)
     X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
+
     await pulsar.send('network_manager_actor', 
                       'network_progress_update', 
                       {'aid': actor.aid,
@@ -50,9 +52,10 @@ async def network_instance_process(actor, args={}):
     learn_iters = 10
 
     for i in range(learn_iters):
-        model.fit(X_train, Y_train, n_epoch=1, show_metric=True)
+        model.fit(X_train, Y_train, validation_set=(X_val, Y_val), n_epoch=1, show_metric=True)
         Y_pred = get_predictions(model, X_val)
         precision, recall, accuracy = compute_metrics(Y_val, Y_pred)
+
         await pulsar.send('network_manager_actor',
                           'network_progress_update', 
                           {'aid': actor.aid,
