@@ -2,15 +2,15 @@
     <v-container fluid grid-list-md>
         <v-layout row wrap>
 
-            <v-flex d-flex xs12 sm6 md4>
+            <v-flex d-flex xs12 sm12 md12>
                 <v-card class="flexcard">
                     <v-card-title primary class="title">Neural network</v-card-title>
                     <v-card-text class="grow">
                         <v-select
-                            :items="network.representations"
+                            :items="network.num_instances"
                             :hide-details="true"
                             color="orange"
-                            label="Joke representation"
+                            label="Number of instances"
                         ></v-select>
                         <v-select
                             :items="network.activationFunctions"
@@ -30,8 +30,8 @@
                                 <v-list-tile :key="index">
                                     <v-list-tile-content>
                                         <span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>
-                                        <v-list-tile-sub-title v-html="item.subtitle"></v-list-tile-sub-title>
-                                        <v-progress-linear class="my-1" color="green" v-model="item.progress"></v-progress-linear>
+                                        <v-list-tile-sub-title>Accuracy: {{item.progress.acc.toFixed(2)}} %</v-list-tile-sub-title>
+                                        <v-progress-linear class="my-1" color="green" v-model="item.progress.value"></v-progress-linear>
                                     </v-list-tile-content>
                                 </v-list-tile>
 
@@ -42,110 +42,110 @@
 
                     <v-card-actions>
                         <v-btn flat color="green" v-on:click="startLearning('network')" :loading="network.running"><v-icon left>play_arrow</v-icon>Run</v-btn>
-                        <v-btn flat color="red" v-on:click="stopLearning('network')" :loading="network.stopping"><v-icon left>stop</v-icon>Stop</v-btn>
+                        <v-btn flat color="red" v-on:click="stopLearning('network')" :loading="network.stopping"><v-icon left>stop</v-icon>Kill</v-btn>
                     </v-card-actions>
                 </v-card>
             </v-flex>
 
-            <v-flex d-flex xs12 sm6 md4>
-                <v-card class="flexcard">
-                    <v-card-title primary class="title">Naive Bayes</v-card-title>
-                    <v-card-text class="grow">
-                        <v-select
-                                :items="bayes.representations"
-                                :hide-details="true"
-                                color="orange"
-                                label="Joke representation"
-                        ></v-select>
-                        <br>
-                        <v-divider></v-divider>
-                        <span class="font-weight-bold">
-                            Running instances:
-                            <v-btn flat icon color="orange" @click="updateProgress('bayes')">
-                                <v-icon>cached</v-icon>
-                            </v-btn>
-                        </span>
-                        <v-list two-line class="pa-0">
-                            <template v-for="(item, index) in bayes.instances">
-                                <v-list-tile :key="index">
-                                    <v-list-tile-content>
-                                        <span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>
-                                        <v-list-tile-sub-title v-html="item.subtitle"></v-list-tile-sub-title>
-                                        <v-progress-linear class="my-1" color="green" v-model="item.progress"></v-progress-linear>
-                                    </v-list-tile-content>
-                                </v-list-tile>
+            <!--<v-flex d-flex xs12 sm6 md4>-->
+                <!--<v-card class="flexcard">-->
+                    <!--<v-card-title primary class="title">Naive Bayes</v-card-title>-->
+                    <!--<v-card-text class="grow">-->
+                        <!--<v-select-->
+                                <!--:items="bayes.representations"-->
+                                <!--:hide-details="true"-->
+                                <!--color="orange"-->
+                                <!--label="Joke representation"-->
+                        <!--&gt;</v-select>-->
+                        <!--<br>-->
+                        <!--<v-divider></v-divider>-->
+                        <!--<span class="font-weight-bold">-->
+                            <!--Running instances:-->
+                            <!--<v-btn flat icon color="orange" @click="updateProgress('bayes')">-->
+                                <!--<v-icon>cached</v-icon>-->
+                            <!--</v-btn>-->
+                        <!--</span>-->
+                        <!--<v-list two-line class="pa-0">-->
+                            <!--<template v-for="(item, index) in bayes.instances">-->
+                                <!--<v-list-tile :key="index">-->
+                                    <!--<v-list-tile-content>-->
+                                        <!--<span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>-->
+                                        <!--<v-list-tile-sub-title v-html="item.subtitle"></v-list-tile-sub-title>-->
+                                        <!--<v-progress-linear class="my-1" color="green" v-model="item.progress"></v-progress-linear>-->
+                                    <!--</v-list-tile-content>-->
+                                <!--</v-list-tile>-->
 
-                            </template>
-                            <span v-if="bayes.instances.length < 1" class="px-3">None</span>
-                        </v-list>
-                    </v-card-text>
+                            <!--</template>-->
+                            <!--<span v-if="bayes.instances.length < 1" class="px-3">None</span>-->
+                        <!--</v-list>-->
+                    <!--</v-card-text>-->
 
-                    <v-card-actions>
-                        <v-btn flat color="green" v-on:click="startLearning('bayes')" :loading="bayes.running"><v-icon left>play_arrow</v-icon>Run</v-btn>
-                        <v-btn flat color="red" v-on:click="stopLearning('bayes')" :loading="bayes.stopping"><v-icon left>stop</v-icon>Stop</v-btn>
-                    </v-card-actions>
-                </v-card>
-            </v-flex>
+                    <!--<v-card-actions>-->
+                        <!--<v-btn flat color="green" v-on:click="startLearning('bayes')" :loading="bayes.running"><v-icon left>play_arrow</v-icon>Run</v-btn>-->
+                        <!--<v-btn flat color="red" v-on:click="stopLearning('bayes')" :loading="bayes.stopping"><v-icon left>stop</v-icon>Stop</v-btn>-->
+                    <!--</v-card-actions>-->
+                <!--</v-card>-->
+            <!--</v-flex>-->
 
-            <v-flex d-flex xs12 sm6 md4>
-                <v-card class="flexcard">
-                    <v-card-title primary class="title">SVM</v-card-title>
-                    <v-card-text class="grow">
-                        <v-select
-                                :items="svm.representations"
-                                :hide-details="true"
-                                color="orange"
-                                label="Joke representation"
-                        ></v-select>
-                        <br>
-                        <v-divider></v-divider>
-                        <span class="font-weight-bold">
-                            Running instances:
-                            <v-btn flat icon color="orange" @click="updateProgress('svm')">
-                                <v-icon>cached</v-icon>
-                            </v-btn>
-                        </span>
-                        <v-list two-line class="pa-0">
-                            <template v-for="(item, index) in svm.instances">
-                                <v-list-tile :key="index">
-                                    <v-list-tile-content>
-                                        <span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>
-                                        <v-list-tile-sub-title v-html="item.subtitle"></v-list-tile-sub-title>
-                                        <v-progress-linear class="my-1" color="green" v-model="item.progress"></v-progress-linear>
-                                    </v-list-tile-content>
-                                </v-list-tile>
+            <!--<v-flex d-flex xs12 sm6 md4>-->
+                <!--<v-card class="flexcard">-->
+                    <!--<v-card-title primary class="title">SVM</v-card-title>-->
+                    <!--<v-card-text class="grow">-->
+                        <!--<v-select-->
+                                <!--:items="svm.representations"-->
+                                <!--:hide-details="true"-->
+                                <!--color="orange"-->
+                                <!--label="Joke representation"-->
+                        <!--&gt;</v-select>-->
+                        <!--<br>-->
+                        <!--<v-divider></v-divider>-->
+                        <!--<span class="font-weight-bold">-->
+                            <!--Running instances:-->
+                            <!--<v-btn flat icon color="orange" @click="updateProgress('svm')">-->
+                                <!--<v-icon>cached</v-icon>-->
+                            <!--</v-btn>-->
+                        <!--</span>-->
+                        <!--<v-list two-line class="pa-0">-->
+                            <!--<template v-for="(item, index) in svm.instances">-->
+                                <!--<v-list-tile :key="index">-->
+                                    <!--<v-list-tile-content>-->
+                                        <!--<span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>-->
+                                        <!--<v-list-tile-sub-title v-html="item.subtitle"></v-list-tile-sub-title>-->
+                                        <!--<v-progress-linear class="my-1" color="green" v-model="item.progress"></v-progress-linear>-->
+                                    <!--</v-list-tile-content>-->
+                                <!--</v-list-tile>-->
 
-                            </template>
-                            <span v-if="svm.instances.length < 1" class="px-3">None</span>
-                        </v-list>
-                    </v-card-text>
+                            <!--</template>-->
+                            <!--<span v-if="svm.instances.length < 1" class="px-3">None</span>-->
+                        <!--</v-list>-->
+                    <!--</v-card-text>-->
 
-                    <v-card-actions>
-                        <v-btn flat color="green" v-on:click="startLearning('svm')" :loading="svm.running"><v-icon left>play_arrow</v-icon>Run</v-btn>
-                        <v-btn flat color="red" v-on:click="stopLearning('svm')" :loading="svm.stopping"><v-icon left>stop</v-icon>Stop</v-btn>
-                    </v-card-actions>
-                </v-card>
-            </v-flex>
+                    <!--<v-card-actions>-->
+                        <!--<v-btn flat color="green" v-on:click="startLearning('svm')" :loading="svm.running"><v-icon left>play_arrow</v-icon>Run</v-btn>-->
+                        <!--<v-btn flat color="red" v-on:click="stopLearning('svm')" :loading="svm.stopping"><v-icon left>stop</v-icon>Stop</v-btn>-->
+                    <!--</v-card-actions>-->
+                <!--</v-card>-->
+            <!--</v-flex>-->
 
-            <div>&nbsp;</div>
+            <!--<div>&nbsp;</div>-->
 
-            <v-flex d-flex xs12 sm12 md12>
-                <v-card class="flexcard">
-                    <v-card-title primary class="title">Master Classifier (work in progress)</v-card-title>
-                    <v-card-text class="grow">
-                        <br>
-                        <v-divider></v-divider>
-                        <br>
-                        <span>Learning Progress</span>
-                        <v-progress-linear class="my-1" color="green" v-model="master.progress"></v-progress-linear>
-                    </v-card-text>
+            <!--<v-flex d-flex xs12 sm12 md12>-->
+                <!--<v-card class="flexcard">-->
+                    <!--<v-card-title primary class="title">Master Classifier (work in progress)</v-card-title>-->
+                    <!--<v-card-text class="grow">-->
+                        <!--<br>-->
+                        <!--<v-divider></v-divider>-->
+                        <!--<br>-->
+                        <!--<span>Learning Progress</span>-->
+                        <!--<v-progress-linear class="my-1" color="green" v-model="master.progress"></v-progress-linear>-->
+                    <!--</v-card-text>-->
 
-                    <v-card-actions>
-                        <v-btn flat color="green" :loading="master.running"><v-icon left>play_arrow</v-icon>Run</v-btn>
-                        <v-btn flat color="red" :loading="master.stopping"><v-icon left>stop</v-icon>Stop</v-btn>
-                    </v-card-actions>
-                </v-card>
-            </v-flex>
+                    <!--<v-card-actions>-->
+                        <!--<v-btn flat color="green" :loading="master.running"><v-icon left>play_arrow</v-icon>Run</v-btn>-->
+                        <!--<v-btn flat color="red" :loading="master.stopping"><v-icon left>stop</v-icon>Stop</v-btn>-->
+                    <!--</v-card-actions>-->
+                <!--</v-card>-->
+            <!--</v-flex>-->
 
         </v-layout>
         <ErrorModal v-bind:show="this.error.show"
@@ -174,8 +174,8 @@
                 network: {
                     running: false,
                     stopping: false,
-                    representations: ['bag-of-words', 'n-grams'],
-                    activationFunctions: ['relu', 'softmax', 'tanh'],
+                    num_instances: [1,2,3,4],
+                    activationFunctions: ['relu', 'tanh'],
                     instances: []
                 },
                 bayes: {
