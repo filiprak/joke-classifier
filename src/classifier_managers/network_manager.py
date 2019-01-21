@@ -9,7 +9,7 @@ from classifier_models.network_model import create_model
 from classifiers.network import run_network_instance
 from utils import average_models, serialize_model, update_model, model_size, model_sizeMB
 
-NUMBER_NETWORK_INSTANCES = 3
+NUMBER_NETWORK_INSTANCES = 2
 
 NETWORK_STATE = {
     'model': None,
@@ -62,11 +62,11 @@ async def spawn_network_instances(n=1):
             NETWORK_STATE['instances'][aid] = {
                 'proxy': inst_proxy,
                 'aid': inst_proxy.aid,
-                'progress': 0,
+                'progress': {},
                 'progress_timestamp': 0,
             }
         else:
-            NETWORK_STATE['instances'][aid]['progress'] = 0
+            NETWORK_STATE['instances'][aid]['progress'] = {}
             NETWORK_STATE['instances'][aid]['progress_timestamp'] = 0
 
 

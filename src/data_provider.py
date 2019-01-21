@@ -62,11 +62,11 @@ def initial_state():
         'data': None,
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
-        'step': 100,
+        'step': 4000,
         'counter': 0,
 
         'source': '../scrapper/out/unijokes.json',
-        'max_jokes': 6000,
+        'max_jokes': 15000,
     }
 
 
@@ -150,10 +150,17 @@ def get_data(input_format='hot_vector', output_format='categorical', ngrams=Fals
 
     X = STATE['X'][input_format]
     Y = STATE['Y'][output_format]
+
     if not all_data:
-        X = X[STATE['counter']:STATE['counter'] + STATE['step']]
-        Y = Y[STATE['counter']:STATE['counter'] + STATE['step']]
-        STATE['counter'] = STATE['counter'] + STATE['step']
+        total_X = len(X)
+
+        counter = STATE['counter']
+        if counter >= total_X:
+            counter = 0
+
+        X = X[counter:counter + STATE['step']]
+        Y = Y[counter:counter + STATE['step']]
+        STATE['counter'] = counter + STATE['step']
         logging.info("Get data: {}".format(STATE['counter']))
     return X, Y
 

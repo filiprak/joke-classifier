@@ -13,6 +13,7 @@ from classifier_models.network_model import create_model
 if __name__ == '__main__':
     import os
     import sys
+
     sys.path.append(os.path.dirname(sys.path[0]))
 
 import data_provider
@@ -43,27 +44,29 @@ async def network_instance_process(actor, args={}):
     Y_train, Y_val = split(Y_data, 0.9)
     X_train, X_val, Y_train, Y_val = np.array(X_train), np.array(X_val), np.array(Y_train), np.array(Y_val)
 
-    await pulsar.send('network_manager_actor', 
-                      'network_progress_update', 
+    await pulsar.send('network_manager_actor',
+                      'network_progress_update',
                       {'aid': actor.aid,
                        'timestamp': time.time(),
-                       'progress': 1})
+                       'progress': {'value': 1, 'acc': 0.0}})
 
     learn_iters = 10
+
+    max_accuracy = 0.0
 
     for i in range(learn_iters):
         model.fit(X_train, Y_train, validation_set=(X_val, Y_val), n_epoch=1, show_metric=True)
         Y_pred = get_predictions(model, X_val)
         precision, recall, accuracy = compute_metrics(Y_val, Y_pred)
 
+        max_accuracy = max(accuracy, max_accuracy)
+
         await pulsar.send('network_manager_actor',
-                          'network_progress_update', 
+                          'network_progress_update',
                           {'aid': actor.aid,
                            'timestamp': time.time(),
-                           'progress': (i+1) * learn_iters,
-                           'precision': precision,
-                           'recall': recall,
-                           'accuracy': accuracy})
+                           'progress': {'value': (i + 1) * learn_iters, 'acc': accuracy}
+                           })
 
     model_serial = serialize_model(model)
     actor.logger.info('sending model (size = {}) update to super-classifier...'.format(model_sizeMB(model_serial)))
@@ -71,26 +74,26 @@ async def network_instance_process(actor, args={}):
     await pulsar.send('network_manager_actor', 'network_model_update', model_serial)
 
     actor.logger.info('sending finish notify to super-classifier...')
-    await pulsar.send('network_manager_actor', 
-                      'network_progress_update', 
+    await pulsar.send('network_manager_actor',
+                      'network_progress_update',
                       {'aid': actor.aid,
                        'timestamp': time.time(),
-                       'progress': 101})
+                       'progress': {'value': 101, 'acc': max_accuracy}})
 
 
 def dnn_model(input_length, output_length, activation='relu'):
     input_layer = tflearn.input_data(shape=[None, input_length])
-    model = tflearn.fully_connected(input_layer, 
-                                    64, 
+    model = tflearn.fully_connected(input_layer,
+                                    64,
                                     activation=activation)
     model = tflearn.dropout(model, 0.8)
-    model = tflearn.fully_connected(input_layer, 
-                                    64, 
+    model = tflearn.fully_connected(input_layer,
+                                    64,
                                     activation=activation)
     model = tflearn.dropout(model, 0.8)
     softmax = tflearn.fully_connected(model, output_length, activation='softmax')
     sgd = tflearn.SGD(learning_rate=0.1, decay_step=1000)
-    net = tflearn.regression(softmax, 
+    net = tflearn.regression(softmax,
                              optimizer=sgd,
                              loss='categorical_crossentropy')
     model = tflearn.DNN(net, tensorboard_verbose=0)
@@ -103,7 +106,7 @@ def lstm_model(input_length, output_length, activation='relu'):
     model = tflearn.lstm(model, 64, dropout=0.8)
     softmax = tflearn.fully_connected(model, output_length, activation='softmax')
     sgd = tflearn.SGD(learning_rate=0.1, decay_step=1000)
-    net = tflearn.regression(softmax, 
+    net = tflearn.regression(softmax,
                              optimizer=sgd,
                              loss='categorical_crossentropy')
     model = tflearn.DNN(net, tensorboard_verbose=0)
@@ -114,7 +117,7 @@ def local_train(stemmer=data_provider.NoStemmer(), text_representation='bag-of-w
     data_provider.init_data_provider(ngrams=False)
     X, Y = data_provider.get_data(input_format='hot_vector' if create_model == dnn_model else 'sequential',
                                   output_format='categorical',
-                                  ngrams=text_representation=='ngrams',
+                                  ngrams=text_representation == 'ngrams',
                                   all_data=True)
 
     model = create_model(len(X[0]), len(Y[0]))
@@ -147,7 +150,7 @@ def get_predictions(model, X):
     Y_pred = np.zeros(shape=predictions.shape)
     for prediction, y in zip(predictions, Y_pred):
         y[prediction.argmax()] = 1
-    assert(all(sum(x) > 0 for x in Y_pred))
+    assert (all(sum(x) > 0 for x in Y_pred))
     return Y_pred
 
 
