@@ -48,11 +48,12 @@ async def network_instance_process(actor, args={}):
                       'network_progress_update',
                       {'aid': actor.aid,
                        'timestamp': time.time(),
-                       'progress': {'value': 1, 'acc': 0.0}})
+                       'progress': {'value': 1, 'acc': 0.0, 'prec': 0.0}})
 
     learn_iters = 10
 
     max_accuracy = 0.0
+    max_precision = 0.0
 
     for i in range(learn_iters):
         model.fit(X_train, Y_train, validation_set=(X_val, Y_val), n_epoch=1, show_metric=True)
@@ -60,12 +61,13 @@ async def network_instance_process(actor, args={}):
         precision, recall, accuracy = compute_metrics(Y_val, Y_pred)
 
         max_accuracy = max(accuracy, max_accuracy)
+        max_precision = max(precision, max_precision)
 
         await pulsar.send('network_manager_actor',
                           'network_progress_update',
                           {'aid': actor.aid,
                            'timestamp': time.time(),
-                           'progress': {'value': (i + 1) * learn_iters, 'acc': accuracy}
+                           'progress': {'value': (i + 1) * learn_iters, 'acc': accuracy, 'prec': precision}
                            })
 
     model_serial = serialize_model(model)
@@ -78,7 +80,10 @@ async def network_instance_process(actor, args={}):
                       'network_progress_update',
                       {'aid': actor.aid,
                        'timestamp': time.time(),
-                       'progress': {'value': 101, 'acc': max_accuracy}})
+                       'progress': {'value': 101, 'acc': max_accuracy, 'prec': max_precision}})
+
+    del model
+    del model_serial
 
 
 def dnn_model(input_length, output_length, activation='relu'):

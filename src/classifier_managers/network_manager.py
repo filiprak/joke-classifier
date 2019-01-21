@@ -22,7 +22,13 @@ def run_network_manager(args={}):
 
 
 async def run_network_instances(args):
-    await spawn_network_instances(NUMBER_NETWORK_INSTANCES)
+    num_instances = NUMBER_NETWORK_INSTANCES
+    activ = 'relu'
+    if 'instances' in args:
+        num_instances = args['instances']
+    if 'activation' in args:
+        activ = args['activation']
+    await spawn_network_instances(num_instances)
 
     dpinfo = await pulsar.send('data_provider', 'data_provider_info')
 
@@ -31,7 +37,6 @@ async def run_network_instances(args):
 
     input_length = dpinfo['model_params']['input_length'][input_format]
     output_length = dpinfo['model_params']['output_length'][output_format]
-    activ = 'relu'
 
     if NETWORK_STATE['model'] is None:
         model = create_model(input_length, output_length, activation=activ)

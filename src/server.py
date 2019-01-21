@@ -48,13 +48,21 @@ async def start_learning(request):
     if not query['algo'] or query['algo'] not in algorithm_opts:
         return wsgi.WsgiResponse(400, json.dumps({'error': 'unknown algorithm type'}, indent=4))
 
+    num_instances = 2
+    if 'instances' in query:
+        num_instances = int(query['instances'])
+
+    activation = 'relu'
+    if 'activation' in query:
+        activation = query['activation']
+
     # run managers
     if query['algo'] in ['svm', 'all']:
         await pulsar.send('svm_manager_actor', 'run_svm_learning', {})
     if query['algo'] in ['bayes', 'all']:
         await pulsar.send('bayes_manager_actor', 'run_bayes_learning', {})
     if query['algo'] in ['network', 'all']:
-        await pulsar.send('network_manager_actor', 'run_network_learning', {})
+        await pulsar.send('network_manager_actor', 'run_network_learning', {'instances': num_instances, 'activation': activation})
 
     info = await pulsar.send('arbiter', 'info')
 

@@ -11,11 +11,13 @@
                             :hide-details="true"
                             color="orange"
                             label="Number of instances"
+                            v-model="network.selected_instances"
                         ></v-select>
                         <v-select
                             :items="network.activationFunctions"
                             color="orange"
                             label="Activation function"
+                            v-model="network.selected_activation"
                         ></v-select>
                         <br>
                         <v-divider></v-divider>
@@ -30,7 +32,7 @@
                                 <v-list-tile :key="index">
                                     <v-list-tile-content>
                                         <span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>
-                                        <v-list-tile-sub-title>Accuracy: {{item.progress.acc.toFixed(2)}} %</v-list-tile-sub-title>
+                                        <v-list-tile-sub-title v-if="item.progress.acc != undefined">Accuracy: {{item.progress.acc.toFixed(2)}} % | Precision: {{item.progress.prec.toFixed(2)}} %</v-list-tile-sub-title>
                                         <v-progress-linear class="my-1" color="green" v-model="item.progress.value"></v-progress-linear>
                                     </v-list-tile-content>
                                 </v-list-tile>
@@ -176,7 +178,10 @@
                     stopping: false,
                     num_instances: [1,2,3,4],
                     activationFunctions: ['relu', 'tanh'],
-                    instances: []
+                    instances: [],
+                    
+                    selected_instances: 2,
+                    selected_activation: 'relu',
                 },
                 bayes: {
                     running: false,
@@ -206,7 +211,11 @@
         },
         methods: {
             startLearning(algo) {
-                api.get('/start_learning', { params: { algo: algo } }).then((res) => {
+                api.get('/start_learning', { params: {
+                                                    algo: algo,
+                                                    activation: this.network.selected_activation,
+                                                    instances: this.network.selected_instances,
+                                                } }).then((res) => {
                     switch (algo) {
                         case 'network':
                             this.network.running = true

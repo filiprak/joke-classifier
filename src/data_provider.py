@@ -62,11 +62,11 @@ def initial_state():
         'data': None,
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
-        'step': 4000,
+        'step': 1000,
         'counter': 0,
 
         'source': '../scrapper/out/unijokes.json',
-        'max_jokes': 15000,
+        'max_jokes': 8000,
     }
 
 
@@ -119,6 +119,9 @@ def init_data_provider(ngrams=False):
         data = json.load(s)
 
     data['jokes'] = data['jokes'][:STATE['max_jokes']]
+
+    random.shuffle(data['jokes'])
+
     logging.info('Data provider, extracting categories...')
     STATE['classes'] = extract_categories(data['jokes'], STATE['stemmer'])
     logging.info('Data provider, tokenizing data...')
