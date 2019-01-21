@@ -27,13 +27,19 @@
                                 <v-icon>cached</v-icon>
                             </v-btn>
                         </span>
-                        <v-list two-line class="pa-0">
+                        <v-list three-line class="pa-0">
                             <template v-for="(item, index) in network.instances">
                                 <v-list-tile :key="index">
                                     <v-list-tile-content>
                                         <span>{{item.id}}&nbsp;<v-icon small v-if="item.finished" color="green">done</v-icon></span>
-                                        <v-list-tile-sub-title v-if="item.progress.acc != undefined">Accuracy: {{item.progress.acc.toFixed(2)}} % | Precision: {{item.progress.prec.toFixed(2)}} %</v-list-tile-sub-title>
+                                        <v-list-tile-sub-title v-if="item.progress.acc != undefined">
+                                            <span :style="{'color': '#4caf50  '}">Progress: {{item.progress.value.toFixed(2)}} %</span> |
+                                            <span :style="{'color': '#9c27b0 '}">Accuracy: {{item.progress.acc.toFixed(2)}} %</span> |
+                                            <span :style="{'color': '#2196f3 '}">Precision: {{item.progress.prec.toFixed(2)}} %</span>
+                                        </v-list-tile-sub-title>
                                         <v-progress-linear class="my-1" color="green" v-model="item.progress.value"></v-progress-linear>
+                                        <v-progress-linear class="my-1" color="purple" v-model="item.progress.acc"></v-progress-linear>
+                                        <v-progress-linear class="my-1" color="blue" v-model="item.progress.prec"></v-progress-linear>
                                     </v-list-tile-content>
                                 </v-list-tile>
 
