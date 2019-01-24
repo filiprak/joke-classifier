@@ -30,7 +30,8 @@
             return {
                 items: [
                     {title: 'Dashboard', icon: 'dashboard', path: 'dashboard'},
-                    {title: 'Settings', icon: 'settings', path: 'settings'},
+                    {title: 'Example Jokes', icon: 'tag_faces', path: 'jokes'},
+                    //{title: 'Settings', icon: 'settings', path: 'settings'},
                 ]
             }
         },

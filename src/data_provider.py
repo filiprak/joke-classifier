@@ -59,6 +59,10 @@ def initial_state():
                 'numerical': None,
             }
         },
+
+        'tokenizer': None,
+        'categories': {},
+
         'data': None,
         'classes': None,
         'stemmer': nltk.stem.lancaster.LancasterStemmer(),
@@ -110,6 +114,34 @@ def get_data_command(request, args={}):
         ngrams = args['ngrams']
 
     return get_data(args['input_format'], args['output_format'], ngrams, False)
+
+
+@command()
+def tokenize_joke(request, joke):
+    word_indices = STATE['tokenizer'].word_indices
+
+    joke_words = [STATE['stemmer'].stem(word) for word in iter_word(joke)]
+
+    joke_wordidxs = []
+    for w in joke_words:
+        if w in word_indices:
+            joke_wordidxs.append(word_indices[w])
+        else:
+            joke_wordidxs.append(0)
+
+    joke_hotvec = to_hot_vector(joke_wordidxs, STATE['tokenizer'].index)
+
+    logging.warning(joke_hotvec)
+    logging.warning(np.count_nonzero(joke_hotvec == 1))
+
+    return joke_hotvec
+
+
+@command()
+def get_categ_name(request, cat_index):
+    if cat_index in STATE['categories']:
+        return STATE['categories'][cat_index]['full']
+    return 'unknown'
 
 
 def init_data_provider(ngrams=False):
@@ -193,6 +225,8 @@ def extract_categories(jokes, stemmer):
             stemmed = stemmer.stem(category.lower())
             if stemmed not in output:
                 output[stemmed] = index
+                if STATE:
+                    STATE['categories'][index] = { 'stemmed': stemmed, 'full': category.lower() }
                 index += 1
     return output
 

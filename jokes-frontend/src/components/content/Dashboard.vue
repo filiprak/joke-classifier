@@ -20,6 +20,23 @@
                             v-model="network.selected_activation"
                         ></v-select>
                         <br>
+                        <v-textarea box
+                            label="Test your joke"
+                            hint="Write your joke here"
+                            :hide-details="true"
+                            color="orange"
+                            v-model="joke"
+                            v-on:input="category = ''"
+                        ></v-textarea>
+                        <v-btn class="mx-0 px-0" flat color="orange" v-on:click="testJoke()" :loading="network.testing"><v-icon left>help</v-icon>Check category</v-btn>
+                        <v-alert
+                                v-if="this.category"
+                            :value="true"
+                            type="info"
+                        >
+                            {{this.category}}
+                        </v-alert>
+                        <br>
                         <v-divider></v-divider>
                         <span class="font-weight-bold">
                             Running instances:
@@ -179,10 +196,14 @@
                 serverInfo: null,
                 lorem: 'Lorem',
 
+                joke: '',
+                category: '',
+
                 network: {
+                    testing: false,
                     running: false,
                     stopping: false,
-                    num_instances: [1,2,3,4],
+                    num_instances: [1,2,3,4,5],
                     activationFunctions: ['relu', 'tanh'],
                     instances: [],
                     
@@ -216,6 +237,21 @@
             }
         },
         methods: {
+            testJoke() {
+                if (this.joke) {
+                    this.network.testing = true;
+                    api.get('/test_joke', {
+                        params: {
+                            joke: this.joke,
+                        }
+                    }).then((res) => {
+                        this.category = res.data.category;
+
+                    }, this.err).then(() => {
+                        this.network.testing = false;
+                    })
+                }
+            },
             startLearning(algo) {
                 api.get('/start_learning', { params: {
                                                     algo: algo,

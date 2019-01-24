@@ -1,19 +1,23 @@
 import asyncio
 import logging
-import os
+import numpy as np
 
 import pulsar.api as pulsar
 from pulsar.async.proxy import command
 
 from classifier_models.network_model import create_model
 from classifiers.network import run_network_instance
-from utils import average_models, serialize_model, update_model, model_size, model_sizeMB
+from utils import average_models, serialize_model, update_model, model_size, model_sizeMB, fill_model
 
 NUMBER_NETWORK_INSTANCES = 2
 
 NETWORK_STATE = {
     'model': None,
-    'instances': {}
+    'instances': {},
+
+    'input_length': None,
+    'output_length': None,
+    'activation': None,
 }
 
 
@@ -39,6 +43,9 @@ async def run_network_instances(args):
     output_length = dpinfo['model_params']['output_length'][output_format]
 
     if NETWORK_STATE['model'] is None:
+        NETWORK_STATE['input_length'] = input_length
+        NETWORK_STATE['output_length'] = output_length
+        NETWORK_STATE['activation'] = activ
         model = create_model(input_length, output_length, activation=activ)
 
         logging.info(
@@ -73,6 +80,15 @@ async def spawn_network_instances(n=1):
         else:
             NETWORK_STATE['instances'][aid]['progress'] = {}
             NETWORK_STATE['instances'][aid]['progress_timestamp'] = 0
+
+
+def get_prediction(model, X):
+    predictions = model.predict([X])
+    Y_pred = np.zeros(shape=predictions.shape)
+    for prediction, y in zip(predictions, Y_pred):
+        y[prediction.argmax()] = 1
+    assert (all(sum(x) > 0 for x in Y_pred))
+    return Y_pred[0]
 
 
 @command()
@@ -116,3 +132,19 @@ async def kill_network_instances(request):
         NETWORK_STATE['instances'] = {}
 
     return 'ok'
+
+
+@command()
+async def test_joke(request, joke):
+    tokenized = await pulsar.send('data_provider', 'tokenize_joke', joke)
+
+    model = create_model(NETWORK_STATE['input_length'], NETWORK_STATE['output_length'], activation=NETWORK_STATE['activation'])
+
+    if NETWORK_STATE['model'] is not None:
+        fill_model(model, NETWORK_STATE['model'])
+        pred_Y = get_prediction(model, tokenized)
+        categ_idx = pred_Y.tolist().index(1)
+        cname = await pulsar.send('data_provider', 'get_categ_name', categ_idx)
+        return cname
+
+    return 'Unknown'

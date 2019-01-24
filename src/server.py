@@ -161,6 +161,15 @@ async def data_info(request):
     return wsgi.WsgiResponse(200, json.dumps(data, indent=4))
 
 
+@app.router('/test_joke', methods=['get'])
+async def test_joke(request):
+
+    joke = str(request.url_data['joke'])
+
+    category = await pulsar.send('network_manager_actor', 'test_joke', joke)
+    return wsgi.WsgiResponse(200, json.dumps({'category': category}, indent=4))
+
+
 # start WSGI server
 def wsgi_setup():
     return wsgi.WsgiHandler(middleware=[app], response_middleware=[AccessControl()])
